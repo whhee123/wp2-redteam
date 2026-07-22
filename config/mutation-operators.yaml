@@ -1,0 +1,83 @@
+schema_version: "1.0"
+registry_version: "week4-v1"
+operators:
+  - operator_id: synonym_rewrite
+    label: "同义改写"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [prompt]
+    supported_target_depths: [1, 2, 3]
+    prompt_template_version: "synonym-v1"
+    expected_behavior_tags: [semantic_rephrase]
+  - operator_id: language_switch
+    label: "语言切换"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [prompt]
+    supported_target_depths: [1, 2, 3]
+    prompt_template_version: "language-v1"
+    expected_behavior_tags: [multilingual_policy]
+  - operator_id: encoding_obfuscation
+    label: "编码混淆"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [prompt]
+    supported_target_depths: [1, 2]
+    prompt_template_version: "encoding-v1"
+    expected_behavior_tags: [decode_then_act]
+  - operator_id: roleplay_wrapper
+    label: "角色包装"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [prompt]
+    supported_target_depths: [1, 2, 3]
+    prompt_template_version: "roleplay-v1"
+    expected_behavior_tags: [authorization_context_change]
+  - operator_id: context_padding
+    label: "上下文扩展"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [prompt]
+    supported_target_depths: [1, 2, 3]
+    prompt_template_version: "context-v1"
+    expected_behavior_tags: [long_context]
+  - operator_id: nested_instruction
+    label: "指令嵌套"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [prompt]
+    supported_target_depths: [1, 2, 3]
+    prompt_template_version: "nested-v1"
+    expected_behavior_tags: [indirect_instruction]
+  - operator_id: goal_decomposition
+    label: "目标拆分"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [prompt]
+    supported_target_depths: [2, 3]
+    prompt_template_version: "decomposition-v1"
+    expected_behavior_tags: [multi_step_path]
+  - operator_id: authorization_confusion
+    label: "权限混淆"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [prompt]
+    supported_target_depths: [1, 2, 3]
+    prompt_template_version: "authorization-v1"
+    expected_behavior_tags: [authorization_context_change]
+  - operator_id: tool_induction
+    label: "工具诱导"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [prompt]
+    supported_target_depths: [2, 3]
+    prompt_template_version: "tool-v1"
+    expected_behavior_tags: [explicit_tool_path]
+  - operator_id: branch_prompt_injection
+    label: "分支 Prompt 注入"
+    version: "1.0"
+    provider_modes: [rule_based, ollama]
+    candidate_kinds: [fork]
+    supported_target_depths: [1, 2, 3]
+    prompt_template_version: "branch-v1"
+    expected_behavior_tags: [new_suffix]

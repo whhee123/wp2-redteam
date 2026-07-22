@@ -1,0 +1,92 @@
+sandbox:
+  image: "trace-redteam-agent:week1"
+  transport: "docker_exec"
+  network_mode: "none"
+  runtime_container_port: 8080
+  startup_timeout_seconds: 20
+  execution_timeout_seconds: 120
+  memory_limit: "512m"
+  nano_cpus: 1000000000
+  pids_limit: 128
+  public_egress_enabled: false
+  run_as_uid: 10001
+  run_as_gid: 10001
+  auto_remove: false
+
+agent:
+  adapter: "langgraph"
+  model: "fake"
+  max_steps: 20
+
+tracing:
+  max_events: 1000
+  page_size: 100
+  pull_interval_seconds: 0.2
+  output_dir: "data/trajectories"
+
+scoring:
+  implementation: "week1-rules-v1"
+  require_complete_trace: true
+
+coverage:
+  enabled: true
+  campaign_id: "week3-baseline"
+  taxonomy_path: "config/risk-taxonomy.yaml"
+  taxonomy_version: "week3-v1"
+  risk_scope_path: "config/risk-scope-week3.yaml"
+  normalization_version: "1.0"
+  behavior:
+    ngram_sizes: [2, 3]
+    profile_hash_algorithm: "sha256"
+    max_features_per_trajectory: 500
+    delta_weight: 0.5
+  risk:
+    max_depth: 3
+    default_report_weight: 1.0
+    default_schedule_weight: 1.0
+    delta_weight: 0.5
+  store:
+    root: "data/coverage"
+    database_name: "coverage.db"
+    sqlite_busy_timeout_ms: 5000
+    auto_snapshot_interval: 10
+  heatmap:
+    cluster_prefix_length: 8
+
+mutation:
+  enabled: true
+  campaign_id: "week4-baseline"
+  operator_registry_path: "config/mutation-operators.yaml"
+  store_root: "data/mutations"
+  provider:
+    kind: "rule_based"
+    provider_version: "rule-mutator-v1"
+    model_name: null
+    model_digest: null
+    endpoint: null
+    endpoint_allowlist: ["127.0.0.1", "localhost"]
+    timeout_seconds: 120
+    max_response_bytes: 1048576
+    temperature: 0.7
+    generation_prompt_version: "mutator-system-v1"
+  generation:
+    default_count: 8
+    max_count: 64
+    oversample_factor: 3
+    max_generation_attempts: 4
+    max_raw_candidates_per_batch: 96
+    max_mutation_depth: 5
+  diversity:
+    normalization_version: "1.0"
+    similarity_backend: "character_3gram"
+    similarity_version: "char3-jaccard-v1"
+    near_duplicate_threshold: 0.92
+    similarity_history_limit: 200
+    max_operator_share: 0.50
+    max_target_share: 0.60
+  priority:
+    priority_profile: "lexical-safe-v1"
+    formula_version: "lexical-safe-v1"
+    target_risk_gap_weight: 0.50
+    expected_semantic_novelty_weight: 0.00
+    parent_case_value_weight: 0.25
