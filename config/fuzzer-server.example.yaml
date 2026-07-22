@@ -1,0 +1,60 @@
+fuzzer:
+  campaign_id: server-smoke
+  target_profile_id: server-local-model
+  random_seed: 42
+  store_root: data/fuzzing
+  budget:
+    max_duration_seconds: 1800
+    max_executions: 25
+    max_generated_candidates: 100
+    max_corpus_entries: 50
+    stagnation_window: 20
+    stop_on_stagnation: true
+  concurrency:
+    sandbox_workers: 1
+    execution_queue_size: 2
+    result_queue_size: 2
+    max_pending_work_items: 8
+    host_memory_limit_bytes: 536870912
+    host_nano_cpus: 1000000000
+  scheduling:
+    mode: deterministic_rounds
+    max_feedback_lag_work_items: 0
+    generation_no_progress_threshold: 3
+  leases:
+    lease_seconds: 360
+    heartbeat_seconds: 60
+    recovery_grace_seconds: 60
+  retry:
+    max_transient_attempts: 2
+    initial_backoff_seconds: 2
+    max_backoff_seconds: 30
+    systemic_failure_window: 10
+    systemic_failure_threshold: 0.5
+  energy:
+    formula_version: energy-v1
+    base_energy: 2
+    min_energy: 1
+    max_energy: 4
+    novelty_weight: 1.25
+    risk_gap_weight: 1.0
+    rarity_weight: 0.75
+    stagnation_decay_interval: 3
+    stagnation_decay: 0.5
+    minimum_stagnation_factor: 0.125
+    max_mutation_depth: 3
+  seed_pool:
+    max_active_seeds: 100
+    cooldown_no_gain_threshold: 6
+    cooldown_iterations: 20
+    quarantine_failure_threshold: 3
+  corpus:
+    policy_version: coverage-corpus-v1
+    retain_non_interesting_trajectories: true
+    export_prompts: false
+  snapshots:
+    every_committed_items: 5
+    every_seconds: 30
+  shutdown:
+    graceful_timeout_seconds: 180
+    cleanup_timeout_seconds: 60

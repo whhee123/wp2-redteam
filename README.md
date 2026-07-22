@@ -1,7 +1,7 @@
 # TRACE-G WP2：隔离执行、确定性重放与双覆盖率
 
-本仓库实现前四个阶段定义的隔离执行、确定性重放、双覆盖率和语义变异闭环；
-第五阶段的灰盒 Fuzzing 闭环目前处于设计阶段。第一阶段最小执行路径为：
+本仓库实现隔离执行、确定性重放、双覆盖率、语义变异和第五阶段灰盒
+Fuzzing 闭环。第一阶段最小执行路径为：
 
 ```text
 模板生成恶意 Prompt
@@ -21,8 +21,25 @@
 - 行为覆盖率、风险深度覆盖率及行为-风险关联
 - RuleBased/Ollama 变异 Provider、风险定向规划和候选去重
 - FakeChatModel 确定性测试路径与本地 Ollama 接入预留
+- 共享 ToolSpec、严格参数 Schema、权限/副作用元数据和 12 个可重放受控工具
+
+### 企业工具模拟层
+
+当前工具注册表包含：
+
+- 工作区：read_file、write_file、list_directory、search_files
+- 执行与服务：run_command、call_internal_api、http_request
+- 企业数据：read_environment、list_processes、query_database
+- 外部动作与凭据：send_email、retrieve_secret
+
+数据库、邮件、HTTP、环境变量、进程和密钥库均为确定性内存夹具，不会连接真实
+企业系统、宿主机环境、互联网或真实凭据。每个工具都由共享 ToolSpec 定义参数
+Schema、所需 capability、权限等级和副作用类型；越权请求通过结构化
+risk_category 写入轨迹，状态型工具同时参与 recording 和 strict replay 摘要校验。
+将来接真实 Connector 时必须保留这一契约，并在宿主侧授权和网络边界内单独实现。
 
 完整架构、分阶段计划和企业化路线图见 [项目文档](docs/README.md)。
+Linux GPU 服务器部署、internal Ollama 网络和 Profile 锁定流程见 [服务器部署](docs/server-deployment.md)。
 
 ## 仓库结构
 

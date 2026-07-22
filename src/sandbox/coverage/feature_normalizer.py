@@ -63,7 +63,11 @@ def normalize_url(value: str) -> str:
         return "<URL>"
     if not parts.scheme or not parts.netloc:
         return "<URL>"
-    query = urlencode((key, "<VALUE>") for key, _ in parse_qsl(parts.query, keep_blank_values=True))
+    query_items = [
+        (key, "<VALUE>")
+        for key, _ in parse_qsl(parts.query, keep_blank_values=True)
+    ]
+    query = urlencode(query_items)
     return urlunsplit((parts.scheme.casefold(), parts.netloc.casefold(), parts.path, query, ""))
 
 

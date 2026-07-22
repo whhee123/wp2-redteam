@@ -43,7 +43,12 @@ def build_stack(docker_client, output_dir: Path, *, timeout_seconds: int = 120):
     config = config.model_copy(
         update={
             "sandbox": config.sandbox.model_copy(
-                update={"execution_timeout_seconds": timeout_seconds}
+                update={
+                    "image": os.environ.get(
+                        "TRACE_G_E2E_IMAGE", "trace-redteam-agent:week1"
+                    ),
+                    "execution_timeout_seconds": timeout_seconds,
+                }
             )
         }
     )

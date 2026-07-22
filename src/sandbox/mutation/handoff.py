@@ -18,6 +18,10 @@ class ReplayForkService(Protocol):
 async def execute_fork_candidate(
     candidate: MutationCandidate,
     replay_engine: ReplayForkService,
+    *,
+    execution_id: str | None = None,
+    child_replay_id: str | None = None,
+    run_context: Any | None = None,
 ):
     if candidate.candidate_kind != MutationCandidateKind.FORK or candidate.fork is None:
         raise MutationTargetError("candidate is not a replay fork")
@@ -43,4 +47,7 @@ async def execute_fork_candidate(
         ),
         suffix_mode=ForkSuffixMode(specification.suffix_mode),
         operator=f"mutator:{candidate.operator_id}:{candidate.mutation_id}",
+        execution_id=execution_id,
+        child_replay_id=child_replay_id,
+        run_context=run_context,
     )

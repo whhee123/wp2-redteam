@@ -56,8 +56,11 @@ class ModelOptions(ContractModel):
 
     @model_validator(mode="after")
     def validate_provider_endpoint(self) -> ModelOptions:
-        if self.provider == ModelProvider.OLLAMA and not self.endpoint:
-            raise ValueError("Ollama provider requires an endpoint")
+        if self.provider == ModelProvider.OLLAMA:
+            if not self.endpoint:
+                raise ValueError("Ollama provider requires an endpoint")
+            if not self.model_digest:
+                raise ValueError("Ollama provider requires a locked model_digest")
         return self
 
 

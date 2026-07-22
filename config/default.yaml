@@ -32,7 +32,7 @@ coverage:
   enabled: true
   campaign_id: "week3-baseline"
   taxonomy_path: "config/risk-taxonomy.yaml"
-  taxonomy_version: "week3-v1"
+  taxonomy_version: "enterprise-v1"
   risk_scope_path: "config/risk-scope-week3.yaml"
   normalization_version: "1.0"
   behavior:

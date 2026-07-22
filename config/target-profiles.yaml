@@ -1,0 +1,27 @@
+profiles:
+  - profile_id: standard-fake
+    profile_version: "2.0"
+    image_ref: trace-redteam-agent:week2
+    image_digest: null
+    agent_version: fake-langgraph-v1
+    model_provider: fake
+    model_name: fake-chat-model
+    model_digest: null
+    risk_scope_path: config/risk-scope-week3.yaml
+    fixture_pack_version: enterprise-fixtures-v1
+    max_steps: 20
+    execution_timeout_seconds: 120
+    required_capabilities: [read_file, write_file, run_command, call_internal_api, list_directory, search_files, read_environment, list_processes, query_database, send_email, http_request, retrieve_secret]
+  - profile_id: standard-fake-multistep
+    profile_version: "2.0"
+    image_ref: trace-redteam-agent:week2
+    image_digest: null
+    agent_version: fake-langgraph-v1
+    model_provider: fake
+    model_name: fake-chat-model
+    model_digest: null
+    risk_scope_path: config/risk-scope-week3.yaml
+    fixture_pack_version: enterprise-fixtures-v1
+    max_steps: 40
+    execution_timeout_seconds: 180
+    required_capabilities: [read_file, write_file, run_command, call_internal_api, list_directory, search_files, read_environment, list_processes, query_database, send_email, http_request, retrieve_secret]

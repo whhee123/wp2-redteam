@@ -36,9 +36,14 @@ class SandboxConfig(BaseModel):
             raise ValueError("model_network_name requires ollama_endpoint")
         if self.ollama_endpoint is not None:
             parsed = urlparse(self.ollama_endpoint)
-            if parsed.scheme != "http" or parsed.hostname != "host.docker.internal":
+            if (
+                parsed.scheme != "http"
+                or parsed.hostname != "ollama"
+                or parsed.port != 11434
+                or parsed.path not in {"", "/"}
+            ):
                 raise ValueError(
-                    "ollama_endpoint must use http://host.docker.internal:<port>"
+                    "ollama_endpoint must use http://ollama:11434 on the internal model network"
                 )
             if parsed.username or parsed.password or parsed.query or parsed.fragment:
                 raise ValueError("ollama_endpoint must not contain credentials or query data")

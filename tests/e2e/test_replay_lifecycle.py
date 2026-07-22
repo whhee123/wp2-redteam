@@ -35,7 +35,7 @@ async def test_real_record_then_strict_replay_matches_and_cleans_resources(
     docker_client.ping()
     config = WeekOneConfig(
         sandbox=SandboxConfig(
-            image="trace-redteam-agent:week2",
+            image=os.getenv("TRACE_G_E2E_IMAGE", "trace-redteam-agent:week2"),
             workspace_storage="archive_volume",
         ),
         tracing=TraceConfig(

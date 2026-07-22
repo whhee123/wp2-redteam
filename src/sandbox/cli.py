@@ -19,6 +19,7 @@ from sandbox.coverage.store import CoverageStore
 from sandbox.coverage.taxonomy import RiskTaxonomyLoader
 from sandbox.engine.case_source import TemplateCaseSource
 from sandbox.engine.execution_engine import RedTeamExecutionEngine
+from sandbox.fuzzer.cli import add_campaign_parser, campaign_main
 from sandbox.mutation.cli import add_mutation_parser, mutation_main
 from sandbox.protocol import ModelOptions, ModelProvider
 from sandbox.replay.artifact_store import ArtifactStore
@@ -73,6 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("list-cases", help="list deterministic red-team templates")
     add_mutation_parser(subparsers)
+    add_campaign_parser(subparsers)
 
     run = subparsers.add_parser("run", help="execute one isolated red-team case")
     run.add_argument("--case", required=True, dest="case_id")
@@ -312,7 +314,8 @@ def main() -> int:
         return _coverage_main(args, source)
     if args.command == "mutate":
         return mutation_main(args, source)
-
+    if args.command == "campaign":
+        return campaign_main(args, source)
 
     config = _config(args)
     if args.command == "run":

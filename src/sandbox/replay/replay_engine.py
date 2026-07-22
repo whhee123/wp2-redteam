@@ -10,6 +10,8 @@ from sandbox.client.artifact_transfer import ArtifactTransfer
 from sandbox.config import WeekOneConfig
 from sandbox.engine.case_source import TemplateCaseSource
 from sandbox.engine.models import Runtime, Scheduler, Scorer
+from sandbox.fuzzer.models import SandboxRunContext
+from sandbox.identifiers import validate_execution_id
 from sandbox.models import ExecutionRequest, ExecutionStatus, RecordingOptions, TestCase
 from sandbox.replay.artifact_store import ArtifactStore
 from sandbox.replay.audit_store import ReplayAuditStore
@@ -242,8 +244,7 @@ class ReplayEngine:
                 state_matched = (
                     bool(checkpoint_comparisons)
                     and len(checkpoint_comparisons) == len(source_checkpoints)
-                    and len(checkpoint_comparisons)
-                    == len(execution_result.checkpoint_digests)
+                    and len(checkpoint_comparisons) == len(execution_result.checkpoint_digests)
                     and all(item.matched for item in checkpoint_comparisons)
                     and source_final_state_digest == replay_final_state_digest
                 )
@@ -285,18 +286,12 @@ class ReplayEngine:
                     replay_run_id=run_id,
                     source_replay_id=replay_id,
                     source_trajectory_id=manifest.trajectory_id,
-                    status=(
-                        ReplayStatus.DIVERGED
-                        if semantic_divergence
-                        else ReplayStatus.FAILED
-                    ),
+                    status=(ReplayStatus.DIVERGED if semantic_divergence else ReplayStatus.FAILED),
                     divergence_reason=str(
                         terminal_data.get("message") or execution_result.error_message
                     ),
                     error_code=(
-                        int(replay_error_code)
-                        if isinstance(replay_error_code, int)
-                        else -32108
+                        int(replay_error_code) if isinstance(replay_error_code, int) else -32108
                     ),
                     container_removed=False,
                 )
@@ -352,6 +347,9 @@ class ReplayEngine:
         *,
         suffix_mode: ForkSuffixMode = ForkSuffixMode.LIVE_AND_RECORD,
         operator: str = "local-cli",
+        execution_id: str | None = None,
+        child_replay_id: str | None = None,
+        run_context: SandboxRunContext | None = None,
     ) -> ReplayManifest:
         parent = self.manifest_store.load(parent_replay_id)
         if not parent.recording_complete:
@@ -383,8 +381,9 @@ class ReplayEngine:
             if not isinstance(injection.content, str):
                 raise ReplayPreparationError(-32112, "prompt append must be a string")
             prompt += injection.content
-        child_replay_id = f"replay-{uuid4().hex}"
-        execution_id = f"exec-fork-{uuid4().hex}"
+        child_replay_id = child_replay_id or f"replay-{uuid4().hex}"
+        execution_id = execution_id or f"exec-fork-{uuid4().hex}"
+        validate_execution_id(execution_id)
         request = ReplayForkRequest(
             execution_id=execution_id,
             child_replay_id=child_replay_id,
@@ -409,11 +408,19 @@ class ReplayEngine:
         child_manifest: ReplayManifest | None = None
         cleanup_error: Exception | None = None
         try:
-            handle = await self.scheduler.create(
-                execution_id,
-                parent.image_ref,
-                self.config.sandbox.limits,
-            )
+            if run_context is None:
+                handle = await self.scheduler.create(
+                    execution_id,
+                    parent.image_ref,
+                    self.config.sandbox.limits,
+                )
+            else:
+                handle = await self.scheduler.create(
+                    execution_id,
+                    parent.image_ref,
+                    self.config.sandbox.limits,
+                    run_context=run_context,
+                )
             if handle.image_digest != parent.image_digest:
                 raise ReplayPreparationError(-32104, "sandbox image digest does not match Manifest")
             await self.scheduler.wait_until_ready(handle)
@@ -512,9 +519,7 @@ class ReplayEngine:
             "model_decisions": self._put(
                 downloaded["model-decisions.jsonl"], "application/x-ndjson"
             ),
-            "tool_records": self._put(
-                downloaded["tool-records.jsonl"], "application/x-ndjson"
-            ),
+            "tool_records": self._put(downloaded["tool-records.jsonl"], "application/x-ndjson"),
         }
         references["checkpoints"] = self._store_checkpoints(downloaded)
         recording_audit = None
@@ -600,8 +605,7 @@ class ReplayEngine:
             if event.sequence <= checkpoint.sequence
         ]
         payload = b"".join(
-            canonical_json_bytes(event.model_dump(mode="json")) + b"\n"
-            for event in events
+            canonical_json_bytes(event.model_dump(mode="json")) + b"\n" for event in events
         )
         return self._put(payload, "application/x-ndjson")
 

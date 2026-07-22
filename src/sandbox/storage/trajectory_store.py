@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from sandbox.errors import TraceIntegrityError
+from sandbox.identifiers import validate_execution_id
 from sandbox.models import TraceEvent
 
 
@@ -30,6 +31,10 @@ class TrajectoryStore:
     """Persist one execution to a partial file and atomically commit it."""
 
     def __init__(self, output_dir: Path, execution_id: str, max_events: int = 1_000) -> None:
+        try:
+            validate_execution_id(execution_id)
+        except ValueError as exc:
+            raise TraceIntegrityError("invalid trajectory execution_id") from exc
         self.output_dir = output_dir
         self.execution_id = execution_id
         self.max_events = max_events

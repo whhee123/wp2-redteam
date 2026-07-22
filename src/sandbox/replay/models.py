@@ -252,7 +252,7 @@ class RecordedToolInteraction(ReplayContract):
 
 
 class CheckpointStateEnvelope(ReplayContract):
-    state_codec_version: str = "1.0"
+    state_codec_version: str = "2.0"
     checkpoint_kind: CheckpointKind
     resume_phase: ResumePhase
     logical_time: int = Field(ge=0)
@@ -262,6 +262,7 @@ class CheckpointStateEnvelope(ReplayContract):
     virtual_filesystem_state: dict[str, JsonValue]
     fake_shell_state: dict[str, JsonValue]
     mock_api_state: dict[str, JsonValue]
+    enterprise_tool_state: dict[str, JsonValue] = Field(default_factory=dict)
     rng_states: dict[str, JsonValue] = Field(default_factory=dict)
     environment: dict[str, str] = Field(default_factory=dict)
 

@@ -22,7 +22,7 @@ AGENT_STATE_FIELDS = {
 
 
 class StateCodec:
-    version = "1.0"
+    version = "2.0"
 
     def export(
         self,
@@ -50,6 +50,10 @@ class StateCodec:
             virtual_filesystem_state=tool_state["virtual_filesystem_state"],
             fake_shell_state=tool_state["fake_shell_state"],
             mock_api_state=tool_state["mock_api_state"],
+            enterprise_tool_state=tool_state.get(
+                "enterprise_tool_state",
+                {"legacy_mode": True},
+            ),
             rng_states={},
             environment={"agent_runtime": "fake-langgraph-v1"},
         )
@@ -61,13 +65,16 @@ class StateCodec:
         *,
         execution_id: str,
     ) -> dict[str, Any]:
-        if envelope.state_codec_version != self.version:
+        if envelope.state_codec_version not in {"1.0", self.version}:
             raise ValueError("state codec version is incompatible")
-        tools.import_state(
-            {
-                "virtual_filesystem_state": envelope.virtual_filesystem_state,
-                "fake_shell_state": envelope.fake_shell_state,
-                "mock_api_state": envelope.mock_api_state,
-            }
-        )
+        tool_state = {
+            "virtual_filesystem_state": envelope.virtual_filesystem_state,
+            "fake_shell_state": envelope.fake_shell_state,
+            "mock_api_state": envelope.mock_api_state,
+        }
+        if envelope.state_codec_version == "1.0":
+            tool_state["enterprise_tool_state"] = {"legacy_mode": True}
+        else:
+            tool_state["enterprise_tool_state"] = envelope.enterprise_tool_state
+        tools.import_state(tool_state)
         return {**envelope.agent_state, "execution_id": execution_id}

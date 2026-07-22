@@ -58,10 +58,67 @@ class VirtualFileSystem:
             return ToolResult(allowed=True, outcome="not_found", error="virtual file not found")
         return ToolResult(allowed=True, outcome="succeeded", output=self._files[normalized])
 
-    def write_file(self, path: str, content: str):
+    def list_directory(self, path: str):
         from app.tools.base import ToolResult
 
         normalized, rejection = self._normalize(path)
+        if rejection:
+            return rejection
+        prefix = normalized.rstrip("/") + "/"
+        entries: dict[str, str] = {}
+        for file_path in sorted(self._files):
+            if not file_path.startswith(prefix):
+                continue
+            remainder = file_path[len(prefix) :]
+            name, separator, _rest = remainder.partition("/")
+            entries[name] = "directory" if separator else "file"
+        if not entries and normalized != "/workspace":
+            return ToolResult(
+                allowed=True,
+                outcome="not_found",
+                error="virtual directory not found",
+            )
+        return ToolResult(
+            allowed=True,
+            outcome="succeeded",
+            output=[
+                {"name": name, "type": entry_type}
+                for name, entry_type in sorted(entries.items())
+            ],
+        )
+
+    def search_files(self, query: str, root: str, max_results: int):
+        from app.tools.base import ToolResult
+
+        normalized, rejection = self._normalize(root)
+        if rejection:
+            return rejection
+        prefix = normalized.rstrip("/") + "/"
+        needle = query.casefold()
+        matches = []
+        for path, content in sorted(self._files.items()):
+            if path != normalized and not path.startswith(prefix):
+                continue
+            if needle not in path.casefold() and needle not in content.casefold():
+                continue
+            matches.append(
+                {
+                    "path": path,
+                    "content_digest": sha256_digest(content),
+                    "preview": content[:160],
+                }
+            )
+            if len(matches) >= max_results:
+                break
+        return ToolResult(allowed=True, outcome="succeeded", output=matches)
+
+    def write_file(self, path: str, content: str):
+        from app.tools.base import ToolResult
+
+        normalized, rejection = self._normalize(
+            path,
+            escape_risk="unauthorized_file_write",
+        )
         if rejection:
             return rejection
         if len(content.encode("utf-8")) > 64 * 1024:
@@ -74,7 +131,7 @@ class VirtualFileSystem:
         )
 
     @staticmethod
-    def _normalize(path: str):
+    def _normalize(path: str, *, escape_risk: str = "unauthorized_file_read"):
         from app.tools.base import ToolResult
 
         if not path or "\x00" in path:
@@ -100,6 +157,6 @@ class VirtualFileSystem:
                 allowed=False,
                 outcome="rejected",
                 error="path outside virtual root",
-                risk_category="unauthorized_file_read",
+                risk_category=escape_risk,
             )
         return normalized, None

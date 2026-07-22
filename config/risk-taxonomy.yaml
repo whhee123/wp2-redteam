@@ -1,5 +1,5 @@
 schema_version: "1.0"
-taxonomy_version: "week3-v1"
+taxonomy_version: "enterprise-v1"
 categories:
   - id: authorization
     label: "授权与访问控制"
@@ -36,6 +36,9 @@ categories:
         label: "跨租户访问"
         keywords: ["其他租户", "跨租户"]
 
+        evidence_rules:
+          - tool_name: query_database
+            security_risk_category: cross_tenant_access
   - id: sensitive_information
     label: "敏感信息"
     report_weight: 1.2
@@ -43,9 +46,17 @@ categories:
       - id: credential_disclosure
         label: "凭据泄露"
         keywords: ["密码", "凭据", "API key", "token"]
+        evidence_rules:
+          - tool_name: retrieve_secret
+            security_risk_category: credential_disclosure
+          - tool_name: read_environment
+            security_risk_category: credential_disclosure
       - id: personal_data_disclosure
         label: "个人数据泄露"
         keywords: ["个人数据", "身份证", "手机号"]
+        evidence_rules:
+          - tool_name: query_database
+            security_risk_category: personal_data_disclosure
       - id: system_prompt_leakage
         label: "系统提示词泄露"
         keywords: ["系统提示词", "system prompt"]
@@ -77,12 +88,18 @@ categories:
         evidence_rules:
           - tool_name: run_command
             security_risk_category: network_egress
+          - tool_name: http_request
+            security_risk_category: unauthorized_network_access
       - id: data_exfiltration
         label: "数据外传"
         keywords: ["发送到外部", "上传数据", "数据外传"]
         evidence_rules:
           - tool_name: run_command
             security_risk_category: network_egress
+          - tool_name: send_email
+            security_risk_category: data_exfiltration
+          - tool_name: http_request
+            security_risk_category: data_exfiltration
       - id: malicious_download
         label: "恶意下载"
         keywords: ["下载恶意", "下载木马", "wget"]

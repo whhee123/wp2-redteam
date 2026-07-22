@@ -8,6 +8,8 @@ from uuid import uuid4
 from sandbox.config import WeekOneConfig
 from sandbox.engine.case_source import TemplateCaseSource
 from sandbox.engine.models import Runtime, Scheduler, Scorer
+from sandbox.fuzzer.models import SandboxRunContext
+from sandbox.identifiers import validate_execution_id
 from sandbox.models import (
     ExecutionRequest,
     ExecutionResult,
@@ -44,9 +46,16 @@ class RedTeamExecutionEngine:
         )
         return await self.run_test_case(case)
 
-    async def run_test_case(self, case: TestCase) -> RunOutcome:
+    async def run_test_case(
+        self,
+        case: TestCase,
+        *,
+        execution_id: str | None = None,
+        run_context: SandboxRunContext | None = None,
+    ) -> RunOutcome:
         """Execute an already validated case through the standard sandbox lifecycle."""
-        execution_id = f"exec-{uuid4().hex}"
+        execution_id = execution_id or f"exec-{uuid4().hex}"
+        validate_execution_id(execution_id)
         request = ExecutionRequest(
             execution_id=execution_id,
             case_id=case.case_id,
@@ -73,11 +82,19 @@ class RedTeamExecutionEngine:
         failure: Exception | None = None
 
         try:
-            handle = await self.scheduler.create(
-                execution_id,
-                self.config.sandbox.image,
-                self.config.sandbox.limits,
-            )
+            if run_context is None:
+                handle = await self.scheduler.create(
+                    execution_id,
+                    self.config.sandbox.image,
+                    self.config.sandbox.limits,
+                )
+            else:
+                handle = await self.scheduler.create(
+                    execution_id,
+                    self.config.sandbox.image,
+                    self.config.sandbox.limits,
+                    run_context=run_context,
+                )
             removed = False
             request = request.model_copy(update={"image_digest": handle.image_digest})
             await self.scheduler.wait_until_ready(handle)

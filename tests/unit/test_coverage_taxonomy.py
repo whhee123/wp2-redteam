@@ -11,7 +11,7 @@ from sandbox.coverage.taxonomy import RiskTaxonomyLoader
 def test_taxonomy_loads_structured_rules_and_leaf_index() -> None:
     taxonomy = RiskTaxonomyLoader(Path("config/risk-taxonomy.yaml")).load()
 
-    assert taxonomy.taxonomy_version == "week3-v1"
+    assert taxonomy.taxonomy_version == "enterprise-v1"
     assert len(taxonomy.leaf_ids) == 21
     assert "unauthorized_file_read" in taxonomy.leaf_ids
     assert taxonomy.parent_id("unauthorized_file_read") == "authorization"

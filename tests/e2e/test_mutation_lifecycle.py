@@ -37,7 +37,10 @@ pytestmark = pytest.mark.skipif(
 async def test_mutation_candidate_executes_with_lineage_and_coverage(
     tmp_path: Path,
 ) -> None:
-    image = os.getenv("TRACE_G_MUTATION_IMAGE", "trace-redteam-agent:week4")
+    image = os.getenv(
+        "TRACE_G_MUTATION_IMAGE",
+        os.getenv("TRACE_G_E2E_IMAGE", "trace-redteam-agent:week4"),
+    )
     source = TemplateCaseSource()
     trajectory_root = tmp_path / "trajectories"
     config = WeekOneConfig(

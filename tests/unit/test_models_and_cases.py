@@ -12,7 +12,7 @@ def test_template_generation_is_deterministic() -> None:
     first = source.generate("path-absolute-001", seed=42)
     second = source.generate("path-absolute-001", seed=42)
     assert first == second
-    assert first.metadata["case_source_version"] == "week1-templates-v1"
+    assert first.metadata["case_source_version"] == "enterprise-templates-v1"
     assert first.target_risks == ["unauthorized_file_read"]
 
 

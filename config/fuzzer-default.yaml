@@ -1,0 +1,58 @@
+fuzzer:
+  campaign_id: week5-local
+  target_profile_id: standard-fake
+  random_seed: 42
+  store_root: data/fuzzing
+  budget:
+    max_duration_seconds: 7200
+    max_executions: 500
+    max_generated_candidates: 2000
+    max_corpus_entries: 500
+    stagnation_window: 100
+    stop_on_stagnation: true
+  concurrency:
+    sandbox_workers: 2
+    execution_queue_size: 8
+    result_queue_size: 8
+    max_pending_work_items: 32
+  scheduling:
+    mode: deterministic_rounds
+    max_feedback_lag_work_items: 0
+    generation_no_progress_threshold: 3
+  leases:
+    lease_seconds: 240
+    heartbeat_seconds: 30
+    recovery_grace_seconds: 30
+  retry:
+    max_transient_attempts: 2
+    initial_backoff_seconds: 2
+    max_backoff_seconds: 30
+    systemic_failure_window: 20
+    systemic_failure_threshold: 0.50
+  energy:
+    formula_version: energy-v1
+    base_energy: 4
+    min_energy: 1
+    max_energy: 16
+    novelty_weight: 1.25
+    risk_gap_weight: 1.00
+    rarity_weight: 0.75
+    stagnation_decay_interval: 3
+    stagnation_decay: 0.50
+    minimum_stagnation_factor: 0.125
+    max_mutation_depth: 5
+  seed_pool:
+    max_active_seeds: 500
+    cooldown_no_gain_threshold: 6
+    cooldown_iterations: 20
+    quarantine_failure_threshold: 3
+  corpus:
+    policy_version: coverage-corpus-v1
+    retain_non_interesting_trajectories: true
+    export_prompts: false
+  snapshots:
+    every_committed_items: 10
+    every_seconds: 60
+  shutdown:
+    graceful_timeout_seconds: 180
+    cleanup_timeout_seconds: 60

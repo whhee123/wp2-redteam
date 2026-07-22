@@ -27,7 +27,10 @@ pytestmark = pytest.mark.skipif(
 async def test_all_templates_produce_cumulative_coverage_in_real_containers(
     tmp_path: Path,
 ) -> None:
-    image = os.getenv("TRACE_G_COVERAGE_IMAGE", "trace-redteam-agent:week3")
+    image = os.getenv(
+        "TRACE_G_COVERAGE_IMAGE",
+        os.getenv("TRACE_G_E2E_IMAGE", "trace-redteam-agent:week3"),
+    )
     source = TemplateCaseSource()
     trajectory_root = tmp_path / "trajectories"
     config = WeekOneConfig(
@@ -83,7 +86,7 @@ async def test_all_templates_produce_cumulative_coverage_in_real_containers(
         assert snapshot.applicable_intent_coverage == 1.0
         assert snapshot.applicable_behavior_coverage == 1.0
         assert snapshot.applicable_impact_coverage is None
-        assert len(snapshot.not_applicable_risk_categories) == 14
+        assert len(snapshot.not_applicable_risk_categories) == 10
         assert snapshot.uncovered_intent_categories == []
         assert snapshot.uncovered_behavior_categories == []
         assert snapshot.scope_exceeded_categories == {}

@@ -15,6 +15,7 @@ from docker.errors import APIError, DockerException, ImageNotFound, NotFound
 
 from sandbox.config import SandboxConfig, SandboxLimits
 from sandbox.errors import CleanupError, InfrastructureError
+from sandbox.fuzzer.models import CleanupFailure, CleanupReport, SandboxRunContext
 from sandbox.scheduler.models import SandboxHandle
 
 
@@ -42,29 +43,41 @@ class DockerSandboxScheduler:
         execution_id: str,
         image_ref: str,
         limits: SandboxLimits,
+        *,
+        run_context: SandboxRunContext | None = None,
     ) -> SandboxHandle:
-        return await asyncio.to_thread(self._create_sync, execution_id, image_ref, limits)
+        return await asyncio.to_thread(
+            self._create_sync, execution_id, image_ref, limits, run_context
+        )
 
     def _create_sync(
         self,
         execution_id: str,
         image_ref: str,
         limits: SandboxLimits,
+        run_context: SandboxRunContext | None = None,
     ) -> SandboxHandle:
         container = None
         workspace_volume = None
         token = secrets.token_urlsafe(32)
+        created_unix = str(int(time.time()))
+        run_labels = (
+            {
+                "trace-g.campaign-id": run_context.campaign_id,
+                "trace-g.work-item-id": run_context.work_item_id,
+                "trace-g.attempt": str(run_context.attempt),
+            }
+            if run_context is not None
+            else {}
+        )
         try:
             network_mode = self.config.network_mode
             extra_hosts = None
             if self.config.ollama_endpoint is not None:
                 network = self._restricted_model_network()
                 network_mode = network.name
-                extra_hosts = {"host.docker.internal": "host-gateway"}
             tmpfs = {
-                "/tmp": (
-                    f"rw,noexec,nosuid,size={limits.tmpfs_size},uid=10001,gid=10001,mode=0700"
-                )
+                "/tmp": (f"rw,noexec,nosuid,size={limits.tmpfs_size},uid=10001,gid=10001,mode=0700")
             }
             volumes = None
             if self.config.workspace_storage == "archive_volume":
@@ -75,21 +88,21 @@ class DockerSandboxScheduler:
                         "type": "tmpfs",
                         "device": "tmpfs",
                         "o": (
-                            f"size={limits.tmpfs_size},uid=10001,gid=10001,"
-                            "mode=0700,noexec,nosuid"
+                            f"size={limits.tmpfs_size},uid=10001,gid=10001,mode=0700,noexec,nosuid"
                         ),
                     },
                     labels={
                         self.component_label: "workspace-volume",
                         "trace-g.execution-id": execution_id,
                         "trace-g.owner-instance": self.scheduler_instance_id,
+                        "trace-g.created-unix": created_unix,
+                        **run_labels,
                     },
                 )
                 volumes = {workspace_volume.name: {"bind": "/workspace", "mode": "rw"}}
             else:
                 tmpfs["/workspace"] = (
-                    f"rw,noexec,nosuid,size={limits.tmpfs_size},"
-                    "uid=10001,gid=10001,mode=0700"
+                    f"rw,noexec,nosuid,size={limits.tmpfs_size},uid=10001,gid=10001,mode=0700"
                 )
             container = self.client.containers.run(
                 image=image_ref,
@@ -114,10 +127,11 @@ class DockerSandboxScheduler:
                     self.component_label: self.component_value,
                     "trace-g.execution-id": execution_id,
                     "trace-g.owner-instance": self.scheduler_instance_id,
-                    "trace-g.created-unix": str(int(time.time())),
+                    "trace-g.created-unix": created_unix,
                     "trace-g.workspace-volume": (
                         workspace_volume.name if workspace_volume is not None else ""
                     ),
+                    **run_labels,
                 },
             )
             container.reload()
@@ -159,6 +173,8 @@ class DockerSandboxScheduler:
             raise InfrastructureError("model network is missing the ollama-only policy label")
         if network.attrs.get("Driver") != "bridge":
             raise InfrastructureError("model network must use the bridge driver")
+        if network.attrs.get("Internal") is not True:
+            raise InfrastructureError("model network must be an internal network")
         return network
 
     async def wait_until_ready(self, handle: SandboxHandle) -> None:
@@ -239,6 +255,124 @@ class DockerSandboxScheduler:
             except NotFound:
                 continue
         return removed
+
+    async def cleanup_campaign_orphans(
+        self,
+        campaign_id: str,
+        *,
+        active_execution_ids: set[str],
+        max_age_seconds: int,
+    ) -> CleanupReport:
+        return await asyncio.to_thread(
+            self._cleanup_campaign_orphans_sync,
+            campaign_id,
+            active_execution_ids,
+            max_age_seconds,
+        )
+
+    def _cleanup_campaign_orphans_sync(
+        self,
+        campaign_id: str,
+        active_execution_ids: set[str],
+        max_age_seconds: int,
+    ) -> CleanupReport:
+        if not campaign_id or any(character in campaign_id for character in "/\\:"):
+            raise InfrastructureError("invalid cleanup campaign_id")
+        report = CleanupReport(campaign_id=campaign_id)
+        now = int(time.time())
+        containers = self.client.containers.list(
+            all=True,
+            filters={
+                "label": [
+                    f"{self.component_label}={self.component_value}",
+                    f"trace-g.campaign-id={campaign_id}",
+                ]
+            },
+        )
+        discovered: list[str] = []
+        removed: list[str] = []
+        skipped: list[str] = []
+        failures: list[CleanupFailure] = []
+        for container in containers:
+            resource_id = str(container.id)
+            discovered.append(resource_id)
+            try:
+                container.reload()
+                labels = container.labels or {}
+                if labels.get("trace-g.campaign-id") != campaign_id:
+                    skipped.append(resource_id)
+                    continue
+                execution_id = labels.get("trace-g.execution-id", "")
+                if execution_id in active_execution_ids:
+                    skipped.append(resource_id)
+                    continue
+                try:
+                    created = int(labels.get("trace-g.created-unix", "0"))
+                except ValueError:
+                    skipped.append(resource_id)
+                    continue
+                if created <= 0 or now - created < max_age_seconds:
+                    skipped.append(resource_id)
+                    continue
+                volume_name = labels.get("trace-g.workspace-volume")
+                container.remove(force=True, v=True)
+                if volume_name:
+                    with suppress(NotFound):
+                        volume = self.client.volumes.get(volume_name)
+                        volume.reload()
+                        if (volume.attrs.get("Labels") or {}).get(
+                            "trace-g.campaign-id"
+                        ) == campaign_id:
+                            volume.remove(force=True)
+                removed.append(resource_id)
+            except NotFound:
+                removed.append(resource_id)
+            except Exception as exc:
+                failures.append(CleanupFailure(resource_id=resource_id, error=str(exc)[:500]))
+        volumes = self.client.volumes.list(
+            filters={
+                "label": [
+                    f"{self.component_label}=workspace-volume",
+                    f"trace-g.campaign-id={campaign_id}",
+                ]
+            }
+        )
+        for volume in volumes:
+            resource_id = f"volume:{volume.name}"
+            if resource_id in removed:
+                continue
+            discovered.append(resource_id)
+            try:
+                volume.reload()
+                labels = volume.attrs.get("Labels") or {}
+                if labels.get("trace-g.campaign-id") != campaign_id:
+                    skipped.append(resource_id)
+                    continue
+                if labels.get("trace-g.execution-id", "") in active_execution_ids:
+                    skipped.append(resource_id)
+                    continue
+                try:
+                    created = int(labels.get("trace-g.created-unix", "0"))
+                except ValueError:
+                    skipped.append(resource_id)
+                    continue
+                if created <= 0 or now - created < max_age_seconds:
+                    skipped.append(resource_id)
+                    continue
+                volume.remove(force=True)
+                removed.append(resource_id)
+            except NotFound:
+                removed.append(resource_id)
+            except Exception as exc:
+                failures.append(CleanupFailure(resource_id=resource_id, error=str(exc)[:500]))
+        return report.model_copy(
+            update={
+                "discovered": discovered,
+                "removed": removed,
+                "skipped": skipped,
+                "failures": failures,
+            }
+        )
 
     def _container_health_status(self, container_id: str) -> str:
         container = self.client.containers.get(container_id)
